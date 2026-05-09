@@ -4,7 +4,18 @@ from datetime import datetime
 import json
 import os
 
-app = Flask(__name__)
+import os
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
+print("DIR:", os.getcwd())
+print("TEMPLATES:", os.listdir(os.path.join(BASE_DIR, "templates")))
 
 # ====================== CRIA PASTA INSTANCE ======================
 os.makedirs("instance", exist_ok=True)
