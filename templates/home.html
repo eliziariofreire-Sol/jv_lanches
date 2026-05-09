@@ -1,27 +1,47 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>SOL LANCHES</title>
-    <link rel="stylesheet" href="/static/css/tailwind.css">
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-zinc-950 text-white flex items-center justify-center h-screen">
+<body class="bg-zinc-950 text-white flex items-center justify-center min-h-screen">
 
-<div class="text-center">
+    <div class="text-center px-6">
 
-    <h1 class="text-5xl font-bold mb-6">🍔 SOL LANCHES</h1>
+        <!-- LOGO -->
+        <div class="text-7xl mb-6">
+            🍔
+        </div>
 
-    <p class="text-zinc-400 mb-10">
-        Bem-vindo ao melhor sistema de pedidos
-    </p>
+        <!-- TÍTULO -->
+        <h1 class="text-5xl md:text-6xl font-bold mb-6">
+            SOL LANCHES
+        </h1>
 
-    <a href="/cardapio"
-       class="bg-emerald-500 hover:bg-emerald-600 text-black px-10 py-4 rounded-2xl font-bold text-xl">
-        Ver Cardápio
-    </a>
+        <!-- SUBTÍTULO -->
+        <p class="text-zinc-400 text-lg mb-10 max-w-xl">
+            Bem-vindo ao melhor sistema de pedidos online.
+            Faça seu pedido de forma rápida e prática.
+        </p>
 
-</div>
+        <!-- BOTÃO -->
+        <a href="{{ url_for('cardapio') }}"
+           class="inline-block bg-emerald-500 hover:bg-emerald-600
+                  text-black px-10 py-4 rounded-2xl
+                  font-bold text-xl transition duration-300 shadow-lg">
+
+            Ver Cardápio
+
+        </a>
+
+    </div>
 
 </body>
 </html>

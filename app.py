@@ -61,7 +61,7 @@ def adicionar():
     data = request.get_json()
     item_id = data.get("item_id")
 
-    item = Item.query.get(item_id)
+    item = db.session.get(Item, item_id)
     if not item:
         return jsonify({"erro": "Item não encontrado"}), 404
 
@@ -168,7 +168,7 @@ def iniciar_banco():
 
     if Item.query.count() == 0:
         cardapio = [
-            ("Bauru", "Lanches", 9.00, "Pão, bife, ovo, frango", "/static/images/hamburgers/Bauru.png"),
+            ("Bauru", "Lanches", 9.00, "Pão, bife, ovo, frango", "/static/images/hamburgers/bauru_old.png"),
             ("X-Bacon", "Lanches", 13.00, "Pão, bife, bacon, queijo", "/static/images/hamburgers/x-bacon.png"),
             ("X-Egg Bacon", "Lanches", 14.00, "Pão, bacon, ovo", "/static/images/hamburgers/x-egg-bacon.png"),
             ("X-Tudo", "Lanches", 20.00, "Completo da casa", "/static/images/hamburgers/x-tudo.png"),
