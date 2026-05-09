@@ -242,7 +242,7 @@ def iniciar_banco():
                 "Lanches",
                 9.00,
                 "Pão, bife, ovo, frango",
-                "/static/images/hamburgers/bauru_old.png"
+                "/static/images/hamburgers/bauru_old.webp"
             ),
 
             (
@@ -250,7 +250,7 @@ def iniciar_banco():
                 "Lanches",
                 13.00,
                 "Pão, bife, bacon, queijo",
-                "/static/images/hamburgers/x-bacon.png"
+                "/static/images/hamburgers/x-bacon.webp"
             ),
 
             (
@@ -258,7 +258,7 @@ def iniciar_banco():
                 "Lanches",
                 14.00,
                 "Pão, bacon, ovo",
-                "/static/images/hamburgers/x-egg-bacon.png"
+                "/static/images/hamburgers/x-egg-bacon.webp"
             ),
 
             (
@@ -266,7 +266,7 @@ def iniciar_banco():
                 "Lanches",
                 20.00,
                 "Completo da casa",
-                "/static/images/hamburgers/x-tudo.png"
+                "/static/images/hamburgers/x-tudo.webp"
             ),
 
             (
@@ -274,7 +274,7 @@ def iniciar_banco():
                 "Lanches",
                 25.00,
                 "Especial da casa",
-                "/static/images/hamburgers/xsol.png"
+                "/static/images/hamburgers/xsol.webp"
             ),
         ]
 
