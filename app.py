@@ -20,9 +20,9 @@ print("TEMPLATES:", os.listdir(os.path.join(BASE_DIR, "templates")))
 # ====================== CRIA PASTA INSTANCE ======================
 os.makedirs("instance", exist_ok=True)
 
-app.secret_key = "jvlanches-2026-super-secret"
+app.secret_key = "sollanches-2026-super-secret"
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///jvlanches.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sollanches.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -184,7 +184,7 @@ def admin_login_post():
     usuario = request.form.get("usuario")
     senha = request.form.get("senha")
 
-    if usuario == "admin" and senha == "jv123":
+    if usuario == "admin" and senha == "sol123":
         session["admin"] = True
         return redirect("/admin/dashboard")
 
