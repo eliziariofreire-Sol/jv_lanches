@@ -4,8 +4,18 @@ from datetime import datetime
 import json
 import os
 
-import os
+# ====================== CONFIGURAÇÃO DE PASTAS ======================
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
+app.secret_key = "sollanches-2026-super-secret-key"
+
+# ====================== ROTA TREE (CORRIGIDA) ======================
 @app.route("/tree")
 def tree():
     base = os.getcwd()
@@ -25,18 +35,7 @@ def tree():
 
     return "<pre>" + "\n".join(result) + "</pre>"
 
-# ====================== CONFIGURAÇÃO DE PASTAS ======================
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-app = Flask(
-    __name__,
-    template_folder=os.path.join(BASE_DIR, "templates"),
-    static_folder=os.path.join(BASE_DIR, "static")
-)
-
-app.secret_key = "sollanches-2026-super-secret-key"
-
-# ====================== BANCO DE DADOS (CORRIGIDO) ======================
+# ====================== BANCO DE DADOS ======================
 instance_path = os.path.join(BASE_DIR, "instance")
 os.makedirs(instance_path, exist_ok=True)
 
@@ -65,7 +64,7 @@ class Pedido(db.Model):
     endereco = db.Column(db.Text)
     forma_pagamento = db.Column(db.String(30))
 
-# ====================== CONTEXT PROCESSOR ======================
+# ====================== CONTEXT ======================
 @app.context_processor
 def inject_cart_count():
     carrinho = session.get("carrinho", [])
@@ -106,6 +105,7 @@ def item_detail(item_id):
 def adicionar():
     data = request.get_json()
     item = Item.query.get(data.get("item_id"))
+
     if not item:
         return jsonify({"erro": "Item não encontrado"}), 404
 
@@ -113,6 +113,7 @@ def adicionar():
         session["carrinho"] = []
 
     carrinho = session["carrinho"]
+
     for p in carrinho:
         if p["id"] == item.id:
             p["quantidade"] += 1
@@ -126,9 +127,9 @@ def adicionar():
         })
 
     session.modified = True
-    return jsonify({"sucesso": True, "total_itens": sum(i["quantidade"] for i in carrinho)})
+    return jsonify({"sucesso": True})
 
-# ====================== FINALIZAR ======================
+# ====================== FINALIZAR PEDIDO ======================
 @app.route("/finalizar", methods=["POST"])
 def finalizar_pedido():
     carrinho = session.get("carrinho", [])
@@ -150,7 +151,7 @@ def finalizar_pedido():
     db.session.commit()
     session.pop("carrinho", None)
 
-    return render_template("sucesso.html", pedido_id=pedido.id, total=total, nome=request.form.get("nome"))
+    return render_template("sucesso.html", pedido_id=pedido.id, total=total)
 
 # ====================== ADMIN ======================
 @app.route("/admin")
@@ -168,11 +169,15 @@ def admin_login_post():
 def admin_dashboard():
     if not session.get("admin"):
         return redirect("/admin")
+
     pedidos = Pedido.query.order_by(Pedido.data.desc()).all()
-    return render_template("admin_dashboard.html", 
-                         pedidos=pedidos, 
-                         total_vendas=round(sum(p.total for p in pedidos), 2),
-                         total_pedidos=len(pedidos))
+
+    return render_template(
+        "admin_dashboard.html",
+        pedidos=pedidos,
+        total_vendas=round(sum(p.total for p in pedidos), 2),
+        total_pedidos=len(pedidos)
+    )
 
 # ====================== COZINHA ======================
 @app.route("/cozinha")
@@ -190,18 +195,25 @@ def cozinha_login_post():
 def cozinha_dashboard():
     if not session.get("cozinha"):
         return redirect("/cozinha")
-    pedidos = Pedido.query.filter(Pedido.status.in_(["Recebido", "Preparando"])).order_by(Pedido.data.desc()).all()
+
+    pedidos = Pedido.query.filter(
+        Pedido.status.in_(["Recebido", "Preparando"])
+    ).order_by(Pedido.data.desc()).all()
+
     return render_template("cozinha_dashboard.html", pedidos=pedidos)
 
-# ====================== ATUALIZAR STATUS ======================
+# ====================== STATUS ======================
 @app.route("/api/atualizar_status", methods=["POST"])
 def atualizar_status():
     if not (session.get("cozinha") or session.get("admin")):
         return jsonify({"erro": "Sem permissão"}), 403
+
     data = request.get_json()
     pedido = Pedido.query.get_or_404(data.get("pedido_id"))
+
     pedido.status = data.get("status")
     db.session.commit()
+
     return jsonify({"sucesso": True})
 
 # ====================== LOGOUT ======================
@@ -212,24 +224,30 @@ def logout():
     session.pop("cozinha", None)
     return redirect("/")
 
-# ====================== INICIALIZAR BANCO ======================
+# ====================== BANCO INIT ======================
 def iniciar_banco():
     os.makedirs(instance_path, exist_ok=True)
     db.create_all()
 
     if Item.query.count() == 0:
-        print("📋 Criando cardápio inicial...")
         cardapio = [
-            ("Bauru", "Lanches", 9.00, "Pão, bife, ovo, frango", "/static/images/hamburgers/bauru_old.webp"),
-            ("X-Bacon", "Lanches", 13.00, "Pão, bife, bacon, queijo", "/static/images/hamburgers/x-bacon.webp"),
-            ("X-Egg Bacon", "Lanches", 14.00, "Pão, bacon, ovo", "/static/images/hamburgers/x-egg-bacon.webp"),
-            ("X-Tudo", "Lanches", 20.00, "Completo da casa", "/static/images/hamburgers/x-tudo.webp"),
+            ("Bauru", "Lanches", 9.00, "Pão, bife, ovo", "/static/images/hamburgers/bauru_old.webp"),
+            ("X-Bacon", "Lanches", 13.00, "Bacon e queijo", "/static/images/hamburgers/x-bacon.webp"),
+            ("X-Egg Bacon", "Lanches", 14.00, "Ovo e bacon", "/static/images/hamburgers/x-egg-bacon.webp"),
+            ("X-Tudo", "Lanches", 20.00, "Completo", "/static/images/hamburgers/x-tudo.webp"),
             ("X-Sol", "Lanches", 25.00, "Especial da casa", "/static/images/hamburgers/xsol.webp"),
         ]
+
         for nome, cat, preco, desc, img in cardapio:
-            db.session.add(Item(nome=nome, categoria=cat, preco=preco, descricao=desc, imagem=img))
+            db.session.add(Item(
+                nome=nome,
+                categoria=cat,
+                preco=preco,
+                descricao=desc,
+                imagem=img
+            ))
+
         db.session.commit()
-        print("✅ Cardápio criado!")
 
 # ====================== START ======================
 with app.app_context():
