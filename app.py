@@ -62,7 +62,7 @@ def cardapio():
     return render_template("cardapio.html", itens=itens)
 
 @app.route("/carrinho")
-def ver_carrinho():
+def carrinho():
     carrinho = session.get("carrinho", [])
     total = sum(item["preco"] * item["quantidade"] for item in carrinho)
     return render_template("carrinho.html", carrinho=carrinho, total=total)
