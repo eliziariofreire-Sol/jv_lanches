@@ -23,7 +23,7 @@
 
         <a href="{{ url_for('carrinho') }}" 
            class="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-black px-6 py-3 rounded-2xl font-bold transition">
-            🛒 Carrinho (<span id="cart-count">{{ total_itens_carrinho }}</span>)
+            🛒 Carrinho (<span id="cart-count">{{ total_itens_carrinho or 0 }}</span>)
         </a>
     </div>
 </nav>

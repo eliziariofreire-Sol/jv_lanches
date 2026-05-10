@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request, jsonify, session, redirect
+kfrom flask import Flask, render_template, request, jsonify, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
 import os
 
-# ====================== CONFIGURAÇÃO DE PASTAS ======================
+# ====================== CONFIG ======================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(
@@ -15,10 +15,18 @@ app = Flask(
 
 app.secret_key = "sollanches-2026-super-secret-key"
 
-# ====================== ROTA TREE (CORRIGIDA) ======================
+instance_path = os.path.join(BASE_DIR, "instance")
+os.makedirs(instance_path, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_path, 'sollanches.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# ====================== TREE (DEBUG) ======================
 @app.route("/tree")
 def tree():
-    base = os.getcwd()
+    base = BASE_DIR
     result = []
 
     for root, dirs, files in os.walk(base):
@@ -35,20 +43,11 @@ def tree():
 
     return "<pre>" + "\n".join(result) + "</pre>"
 
-# ====================== BANCO DE DADOS ======================
-instance_path = os.path.join(BASE_DIR, "instance")
-os.makedirs(instance_path, exist_ok=True)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "sollanches.db")}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-
 # ====================== MODELOS ======================
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
-    categoria = db.Column(db.String(50), nullable=False)
+    categoria = db.Column(db.String(50))
     preco = db.Column(db.Float, nullable=False)
     descricao = db.Column(db.Text)
     imagem = db.Column(db.String(400))
@@ -56,22 +55,18 @@ class Item(db.Model):
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.DateTime, default=datetime.utcnow)
-    itens = db.Column(db.Text, nullable=False)
-    total = db.Column(db.Float, nullable=False)
+    itens = db.Column(db.Text)
+    total = db.Column(db.Float)
     status = db.Column(db.String(30), default="Recebido")
-    nome_cliente = db.Column(db.String(100))
-    telefone = db.Column(db.String(20))
-    endereco = db.Column(db.Text)
-    forma_pagamento = db.Column(db.String(30))
 
 # ====================== CONTEXT ======================
 @app.context_processor
-def inject_cart_count():
+def inject_cart():
     carrinho = session.get("carrinho", [])
-    total_itens = sum(item.get("quantidade", 1) for item in carrinho)
-    return {"total_itens_carrinho": total_itens}
+    total = sum(i.get("quantidade", 1) for i in carrinho)
+    return {"total_itens_carrinho": total}
 
-# ====================== ROTAS ======================
+# ====================== HOME ======================
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -81,42 +76,27 @@ def cardapio():
     itens = Item.query.all()
     return render_template("cardapio.html", itens=itens)
 
+# ====================== CARRINHO ======================
 @app.route("/carrinho")
 def carrinho():
     carrinho = session.get("carrinho", [])
-    total = sum(item["preco"] * item["quantidade"] for item in carrinho)
+    total = sum(i["preco"] * i["quantidade"] for i in carrinho)
     return render_template("carrinho.html", carrinho=carrinho, total=total)
 
-@app.route("/checkout")
-def checkout():
-    carrinho = session.get("carrinho", [])
-    if not carrinho:
-        return redirect("/carrinho")
-    total = sum(item["preco"] * item["quantidade"] for item in carrinho)
-    return render_template("checkout.html", carrinho=carrinho, total=total)
-
-@app.route("/item/<int:item_id>")
-def item_detail(item_id):
-    item = Item.query.get_or_404(item_id)
-    return render_template("item_detail.html", item=item)
-
-# ====================== API CARRINHO ======================
+# ====================== ADD ITEM ======================
 @app.route("/api/adicionar", methods=["POST"])
 def adicionar():
     data = request.get_json()
-    item = Item.query.get(data.get("item_id"))
+    item = Item.query.get(data["item_id"])
 
     if not item:
         return jsonify({"erro": "Item não encontrado"}), 404
 
-    if "carrinho" not in session:
-        session["carrinho"] = []
+    carrinho = session.get("carrinho", [])
 
-    carrinho = session["carrinho"]
-
-    for p in carrinho:
-        if p["id"] == item.id:
-            p["quantidade"] += 1
+    for i in carrinho:
+        if i["id"] == item.id:
+            i["quantidade"] += 1
             break
     else:
         carrinho.append({
@@ -126,132 +106,92 @@ def adicionar():
             "quantidade": 1
         })
 
+    session["carrinho"] = carrinho
     session.modified = True
-    return jsonify({"sucesso": True})
 
-# ====================== FINALIZAR PEDIDO ======================
-@app.route("/finalizar", methods=["POST"])
-def finalizar_pedido():
+    return jsonify({"ok": True})
+
+# ====================== ATUALIZAR QUANTIDADE ======================
+@app.route("/api/atualizar", methods=["POST"])
+def atualizar():
+    data = request.get_json()
+    carrinho = session.get("carrinho", [])
+
+    for i in carrinho:
+        if i["id"] == data["item_id"]:
+            i["quantidade"] += data["quantidade"]
+
+            if i["quantidade"] <= 0:
+                carrinho.remove(i)
+            break
+
+    session["carrinho"] = carrinho
+    session.modified = True
+    return jsonify({"ok": True})
+
+# ====================== REMOVER ======================
+@app.route("/api/remover", methods=["POST"])
+def remover():
+    data = request.get_json()
+    carrinho = session.get("carrinho", [])
+
+    carrinho = [i for i in carrinho if i["id"] != data["item_id"]]
+
+    session["carrinho"] = carrinho
+    session.modified = True
+
+    return jsonify({"ok": True})
+
+# ====================== CHECKOUT ======================
+@app.route("/checkout")
+def checkout():
     carrinho = session.get("carrinho", [])
     if not carrinho:
         return redirect("/cardapio")
 
-    total = sum(item["preco"] * item["quantidade"] for item in carrinho)
+    total = sum(i["preco"] * i["quantidade"] for i in carrinho)
+    return render_template("checkout.html", carrinho=carrinho, total=total)
+
+# ====================== FINALIZAR ======================
+@app.route("/finalizar", methods=["POST"])
+def finalizar():
+    carrinho = session.get("carrinho", [])
+
+    total = sum(i["preco"] * i["quantidade"] for i in carrinho)
 
     pedido = Pedido(
         itens=json.dumps(carrinho),
-        total=total,
-        nome_cliente=request.form.get("nome"),
-        telefone=request.form.get("telefone"),
-        endereco=request.form.get("endereco"),
-        forma_pagamento=request.form.get("pagamento", "Dinheiro")
+        total=total
     )
 
     db.session.add(pedido)
     db.session.commit()
+
     session.pop("carrinho", None)
 
     return render_template("sucesso.html", pedido_id=pedido.id, total=total)
 
-# ====================== ADMIN ======================
-@app.route("/admin")
-def admin_login():
-    return render_template("admin_login.html")
-
-@app.route("/admin/login", methods=["POST"])
-def admin_login_post():
-    if request.form.get("usuario") == "admin" and request.form.get("senha") == "sol123":
-        session["admin"] = True
-        return redirect("/admin/dashboard")
-    return render_template("admin_login.html", erro="Credenciais inválidas")
-
-@app.route("/admin/dashboard")
-def admin_dashboard():
-    if not session.get("admin"):
-        return redirect("/admin")
-
-    pedidos = Pedido.query.order_by(Pedido.data.desc()).all()
-
-    return render_template(
-        "admin_dashboard.html",
-        pedidos=pedidos,
-        total_vendas=round(sum(p.total for p in pedidos), 2),
-        total_pedidos=len(pedidos)
-    )
-
-# ====================== COZINHA ======================
-@app.route("/cozinha")
-def cozinha_login():
-    return render_template("cozinha_login.html")
-
-@app.route("/cozinha/login", methods=["POST"])
-def cozinha_login_post():
-    if request.form.get("usuario") == "cozinha" and request.form.get("senha") == "cozinha123":
-        session["cozinha"] = True
-        return redirect("/cozinha/dashboard")
-    return render_template("cozinha_login.html", erro="Credenciais inválidas")
-
-@app.route("/cozinha/dashboard")
-def cozinha_dashboard():
-    if not session.get("cozinha"):
-        return redirect("/cozinha")
-
-    pedidos = Pedido.query.filter(
-        Pedido.status.in_(["Recebido", "Preparando"])
-    ).order_by(Pedido.data.desc()).all()
-
-    return render_template("cozinha_dashboard.html", pedidos=pedidos)
-
-# ====================== STATUS ======================
-@app.route("/api/atualizar_status", methods=["POST"])
-def atualizar_status():
-    if not (session.get("cozinha") or session.get("admin")):
-        return jsonify({"erro": "Sem permissão"}), 403
-
-    data = request.get_json()
-    pedido = Pedido.query.get_or_404(data.get("pedido_id"))
-
-    pedido.status = data.get("status")
-    db.session.commit()
-
-    return jsonify({"sucesso": True})
-
-# ====================== LOGOUT ======================
-@app.route("/admin/logout")
-@app.route("/cozinha/logout")
-def logout():
-    session.pop("admin", None)
-    session.pop("cozinha", None)
-    return redirect("/")
-
-# ====================== BANCO INIT ======================
-def iniciar_banco():
-    os.makedirs(instance_path, exist_ok=True)
+# ====================== INIT DB ======================
+def init_db():
     db.create_all()
 
     if Item.query.count() == 0:
-        cardapio = [
-            ("Bauru", "Lanches", 9.00, "Pão, bife, ovo", "/static/images/hamburgers/bauru_old.webp"),
-            ("X-Bacon", "Lanches", 13.00, "Bacon e queijo", "/static/images/hamburgers/x-bacon.webp"),
-            ("X-Egg Bacon", "Lanches", 14.00, "Ovo e bacon", "/static/images/hamburgers/x-egg-bacon.webp"),
-            ("X-Tudo", "Lanches", 20.00, "Completo", "/static/images/hamburgers/x-tudo.webp"),
-            ("X-Sol", "Lanches", 25.00, "Especial da casa", "/static/images/hamburgers/xsol.webp"),
+        itens = [
+            ("Bauru", 9, "/static/images/hamburgers/bauru_old.webp"),
+            ("X-Bacon", 13, "/static/images/hamburgers/x-bacon.webp"),
+            ("X-Egg Bacon", 14, "/static/images/hamburgers/x-egg-bacon.webp"),
+            ("X-Tudo", 20, "/static/images/hamburgers/x-tudo.webp"),
+            ("X-Sol", 25, "/static/images/hamburgers/xsol.webp"),
         ]
 
-        for nome, cat, preco, desc, img in cardapio:
-            db.session.add(Item(
-                nome=nome,
-                categoria=cat,
-                preco=preco,
-                descricao=desc,
-                imagem=img
-            ))
+        for nome, preco, img in itens:
+            db.session.add(Item(nome=nome, preco=preco, imagem=img))
 
         db.session.commit()
 
 # ====================== START ======================
 with app.app_context():
-    iniciar_banco()
+    init_db()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
