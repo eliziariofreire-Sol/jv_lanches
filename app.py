@@ -4,6 +4,25 @@ from datetime import datetime
 import json
 import os
 
+@app.route("/tree")
+def tree():
+    base = os.getcwd()
+    result = []
+
+    for root, dirs, files in os.walk(base):
+        level = root.replace(base, "").count(os.sep)
+        if level > 2:
+            continue
+
+        indent = "  " * level
+        result.append(f"{indent}{os.path.basename(root)}/")
+
+        subindent = "  " * (level + 1)
+        for f in files:
+            result.append(f"{subindent}{f}")
+
+    return "<pre>" + "\n".join(result) + "</pre>"
+
 # ====================== CONFIGURAÇÃO DE PASTAS ======================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
