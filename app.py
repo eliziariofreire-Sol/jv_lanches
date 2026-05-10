@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import os
 
-# ====================== BASE ======================
+# ====================== CONFIGURAÇÃO BASE ======================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(
@@ -13,23 +13,23 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, "static")
 )
 
-app.secret_key = "sol-lanches-2026-secret"
+app.secret_key = "sollanches-2026-super-secret-key"
 
 # ====================== BANCO ======================
 instance_path = os.path.join(BASE_DIR, "instance")
 os.makedirs(instance_path, exist_ok=True)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_path, 'sollanches.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(instance_path, 'sollanches.db')}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
 # ====================== MODELOS ======================
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100))
+    nome = db.Column(db.String(100), nullable=False)
     categoria = db.Column(db.String(50))
-    preco = db.Column(db.Float)
+    preco = db.Column(db.Float, nullable=False)
     descricao = db.Column(db.Text)
     imagem = db.Column(db.String(300))
 
@@ -40,7 +40,7 @@ class Pedido(db.Model):
     total = db.Column(db.Float)
     status = db.Column(db.String(30), default="Recebido")
     nome_cliente = db.Column(db.String(100))
-    telefone = db.Column(db.String(30))
+    telefone = db.Column(db.String(20))
     endereco = db.Column(db.Text)
     forma_pagamento = db.Column(db.String(30))
 
@@ -48,7 +48,7 @@ class Pedido(db.Model):
 @app.context_processor
 def cart_count():
     carrinho = session.get("carrinho", [])
-    total = sum(i.get("quantidade", 1) for i in carrinho)
+    total = sum(item.get("quantidade", 1) for item in carrinho)
     return {"total_itens_carrinho": total}
 
 # ====================== HOME ======================
@@ -62,6 +62,12 @@ def cardapio():
     itens = Item.query.all()
     return render_template("cardapio.html", itens=itens)
 
+# ====================== ITEM ======================
+@app.route("/item/<int:item_id>")
+def item(item_id):
+    produto = Item.query.get_or_404(item_id)
+    return render_template("item_detail.html", item=produto)
+
 # ====================== CARRINHO ======================
 @app.route("/carrinho")
 def carrinho():
@@ -69,7 +75,17 @@ def carrinho():
     total = sum(i["preco"] * i["quantidade"] for i in carrinho)
     return render_template("carrinho.html", carrinho=carrinho, total=total)
 
-# ====================== ADICIONAR ======================
+# ====================== CHECKOUT ======================
+@app.route("/checkout")
+def checkout():
+    carrinho = session.get("carrinho", [])
+    if not carrinho:
+        return redirect("/cardapio")
+
+    total = sum(i["preco"] * i["quantidade"] for i in carrinho)
+    return render_template("checkout.html", carrinho=carrinho, total=total)
+
+# ====================== ADICIONAR ITEM ======================
 @app.route("/api/adicionar", methods=["POST"])
 def adicionar():
     data = request.get_json()
@@ -78,7 +94,10 @@ def adicionar():
     if not item:
         return jsonify({"erro": "Item não encontrado"}), 404
 
-    carrinho = session.get("carrinho", [])
+    if "carrinho" not in session:
+        session["carrinho"] = []
+
+    carrinho = session["carrinho"]
 
     for i in carrinho:
         if i["id"] == item.id:
@@ -97,7 +116,7 @@ def adicionar():
 
     return jsonify({"ok": True})
 
-# ====================== ATUALIZAR ======================
+# ====================== ATUALIZAR QUANTIDADE ======================
 @app.route("/api/atualizar", methods=["POST"])
 def atualizar():
     data = request.get_json()
@@ -106,17 +125,15 @@ def atualizar():
     for i in carrinho:
         if i["id"] == data["item_id"]:
             i["quantidade"] += data["quantidade"]
-
             if i["quantidade"] <= 0:
                 carrinho.remove(i)
             break
 
     session["carrinho"] = carrinho
     session.modified = True
-
     return jsonify({"ok": True})
 
-# ====================== REMOVER ======================
+# ====================== REMOVER ITEM ======================
 @app.route("/api/remover", methods=["POST"])
 def remover():
     data = request.get_json()
@@ -129,17 +146,7 @@ def remover():
 
     return jsonify({"ok": True})
 
-# ====================== CHECKOUT ======================
-@app.route("/checkout")
-def checkout():
-    carrinho = session.get("carrinho", [])
-    if not carrinho:
-        return redirect("/cardapio")
-
-    total = sum(i["preco"] * i["quantidade"] for i in carrinho)
-    return render_template("checkout.html", carrinho=carrinho, total=total)
-
-# ====================== FINALIZAR ======================
+# ====================== FINALIZAR PEDIDO ======================
 @app.route("/finalizar", methods=["POST"])
 def finalizar():
     carrinho = session.get("carrinho", [])
@@ -175,70 +182,75 @@ def admin_login():
     return redirect("/admin")
 
 @app.route("/admin/dashboard")
-def admin_dashboard():
+def dashboard():
     if not session.get("admin"):
         return redirect("/admin")
 
     pedidos = Pedido.query.order_by(Pedido.data.desc()).all()
 
+    total_vendas = sum(p.total for p in pedidos)
+
     return render_template(
         "admin_dashboard.html",
         pedidos=pedidos,
-        total_vendas=sum(p.total for p in pedidos),
+        total_vendas=total_vendas,
         total_pedidos=len(pedidos)
     )
 
-# ====================== COZINHA ======================
-@app.route("/cozinha")
-def cozinha():
-    return render_template("cozinha_login.html")
+# ====================== LOGOUT ======================
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
-@app.route("/cozinha/login", methods=["POST"])
-def cozinha_login():
-    if request.form["usuario"] == "cozinha" and request.form["senha"] == "cozinha123":
-        session["cozinha"] = True
-        return redirect("/cozinha/dashboard")
-    return redirect("/cozinha")
+# ====================== TREE (DEBUG LOCAL/RENDER) ======================
+@app.route("/tree")
+def tree():
+    base = BASE_DIR
+    output = []
 
-@app.route("/cozinha/dashboard")
-def cozinha_dashboard():
-    if not session.get("cozinha"):
-        return redirect("/cozinha")
+    for root, dirs, files in os.walk(base):
+        level = root.replace(base, "").count(os.sep)
+        if level > 2:
+            continue
 
-    pedidos = Pedido.query.filter(Pedido.status != "Finalizado").all()
-    return render_template("cozinha_dashboard.html", pedidos=pedidos)
+        indent = "  " * level
+        output.append(f"{indent}{os.path.basename(root)}/")
 
-# ====================== STATUS ======================
-@app.route("/api/status", methods=["POST"])
-def status():
-    data = request.get_json()
+        sub = "  " * (level + 1)
+        for f in files:
+            output.append(f"{sub}{f}")
 
-    pedido = Pedido.query.get(data["pedido_id"])
-    pedido.status = data["status"]
-
-    db.session.commit()
-
-    return jsonify({"ok": True})
+    return "<pre>" + "\n".join(output) + "</pre>"
 
 # ====================== INIT DB ======================
-with app.app_context():
+def init_db():
     db.create_all()
 
     if Item.query.count() == 0:
         itens = [
-            ("Bauru", "Lanches", 9.0, "Bauru clássico", "/static/images/hamburgers/bauru_old.webp"),
-            ("X-Bacon", "Lanches", 13.0, "Bacon e queijo", "/static/images/hamburgers/x-bacon.webp"),
-            ("X-Egg Bacon", "Lanches", 14.0, "Bacon e ovo", "/static/images/hamburgers/x-egg-bacon.webp"),
-            ("X-Tudo", "Lanches", 20.0, "Completo", "/static/images/hamburgers/x-tudo.webp"),
-            ("X-Sol", "Lanches", 25.0, "Especial da casa", "/static/images/hamburgers/xsol.webp"),
+            ("Bauru", 9.0, "bauru_old.webp"),
+            ("X-Bacon", 13.0, "x-bacon.webp"),
+            ("X-Egg Bacon", 14.0, "x-egg-bacon.webp"),
+            ("X-Tudo", 20.0, "x-tudo.webp"),
+            ("X-Sol", 25.0, "xsol.webp"),
         ]
 
-        for i in itens:
-            db.session.add(Item(nome=i[0], categoria=i[1], preco=i[2], descricao=i[3], imagem=i[4]))
+        for nome, preco, img in itens:
+            db.session.add(Item(
+                nome=nome,
+                categoria="Lanches",
+                preco=preco,
+                descricao=nome,
+                imagem=f"/static/images/hamburgers/{img}"
+            ))
 
         db.session.commit()
 
 # ====================== START ======================
+with app.app_context():
+    init_db()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
