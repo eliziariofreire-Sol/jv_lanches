@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import os
 
-# ====================== CONFIGURAÇÃO ======================
+# ====================== CONFIGURAÇÃO DE PASTAS ======================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(
@@ -15,8 +15,11 @@ app = Flask(
 
 app.secret_key = "sollanches-2026-super-secret-key"
 
-# ✅ Caminho corrigido para funcionar no Render
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, "instance", "sollanches.db")}'
+# ====================== BANCO DE DADOS (CORRIGIDO) ======================
+instance_path = os.path.join(BASE_DIR, "instance")
+os.makedirs(instance_path, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "sollanches.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -48,7 +51,7 @@ def inject_cart_count():
     total_itens = sum(item.get("quantidade", 1) for item in carrinho)
     return {"total_itens_carrinho": total_itens}
 
-# ====================== ROTAS PRINCIPAIS ======================
+# ====================== ROTAS ======================
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -81,9 +84,7 @@ def item_detail(item_id):
 @app.route("/api/adicionar", methods=["POST"])
 def adicionar():
     data = request.get_json()
-    item_id = data.get("item_id")
-
-    item = Item.query.get(item_id)
+    item = Item.query.get(data.get("item_id"))
     if not item:
         return jsonify({"erro": "Item não encontrado"}), 404
 
@@ -91,10 +92,9 @@ def adicionar():
         session["carrinho"] = []
 
     carrinho = session["carrinho"]
-
-    for produto in carrinho:
-        if produto["id"] == item.id:
-            produto["quantidade"] += 1
+    for p in carrinho:
+        if p["id"] == item.id:
+            p["quantidade"] += 1
             break
     else:
         carrinho.append({
@@ -105,11 +105,9 @@ def adicionar():
         })
 
     session.modified = True
-    total_itens = sum(item["quantidade"] for item in carrinho)
+    return jsonify({"sucesso": True, "total_itens": sum(i["quantidade"] for i in carrinho)})
 
-    return jsonify({"sucesso": True, "total_itens": total_itens})
-
-# ====================== FINALIZAR PEDIDO ======================
+# ====================== FINALIZAR ======================
 @app.route("/finalizar", methods=["POST"])
 def finalizar_pedido():
     carrinho = session.get("carrinho", [])
@@ -150,9 +148,10 @@ def admin_dashboard():
     if not session.get("admin"):
         return redirect("/admin")
     pedidos = Pedido.query.order_by(Pedido.data.desc()).all()
-    total_vendas = sum(p.total for p in pedidos)
-    return render_template("admin_dashboard.html", pedidos=pedidos, 
-                         total_vendas=round(total_vendas, 2), total_pedidos=len(pedidos))
+    return render_template("admin_dashboard.html", 
+                         pedidos=pedidos, 
+                         total_vendas=round(sum(p.total for p in pedidos), 2),
+                         total_pedidos=len(pedidos))
 
 # ====================== COZINHA ======================
 @app.route("/cozinha")
@@ -170,19 +169,14 @@ def cozinha_login_post():
 def cozinha_dashboard():
     if not session.get("cozinha"):
         return redirect("/cozinha")
-
-    pedidos = Pedido.query.filter(
-        Pedido.status.in_(["Recebido", "Preparando"])
-    ).order_by(Pedido.data.desc()).all()
-
+    pedidos = Pedido.query.filter(Pedido.status.in_(["Recebido", "Preparando"])).order_by(Pedido.data.desc()).all()
     return render_template("cozinha_dashboard.html", pedidos=pedidos)
 
-# ====================== API STATUS ======================
+# ====================== ATUALIZAR STATUS ======================
 @app.route("/api/atualizar_status", methods=["POST"])
 def atualizar_status():
-    if not session.get("cozinha") and not session.get("admin"):
+    if not (session.get("cozinha") or session.get("admin")):
         return jsonify({"erro": "Sem permissão"}), 403
-
     data = request.get_json()
     pedido = Pedido.query.get_or_404(data.get("pedido_id"))
     pedido.status = data.get("status")
@@ -199,7 +193,7 @@ def logout():
 
 # ====================== INICIALIZAR BANCO ======================
 def iniciar_banco():
-    os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
+    os.makedirs(instance_path, exist_ok=True)
     db.create_all()
 
     if Item.query.count() == 0:
@@ -214,7 +208,7 @@ def iniciar_banco():
         for nome, cat, preco, desc, img in cardapio:
             db.session.add(Item(nome=nome, categoria=cat, preco=preco, descricao=desc, imagem=img))
         db.session.commit()
-        print("✅ Cardápio criado com sucesso!")
+        print("✅ Cardápio criado!")
 
 # ====================== START ======================
 with app.app_context():
