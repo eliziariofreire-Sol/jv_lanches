@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Cozinha - Sol Lanches</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>👨‍🍳 Painel da Cozinha</h2>
+        <p>Faça login para acessar os pedidos</p>
+        
+        {% if erro %}
+            <p style="color: red; font-weight: bold;">{{ erro }}</p>
+        {% endif %}
+
+        <form method="POST" action="/cozinha/login">
+            <input type="text" name="usuario" placeholder="Usuário" value="cozinha" required><br>
+            <input type="password" name="senha" placeholder="Senha" value="cozinha123" required><br><br>
+            <button type="submit">Entrar na Cozinha</button>
+        </form>
+
+        <p style="margin-top: 20px;">
+            <a href="/">← Voltar ao Cardápio</a>
+        </p>
+    </div>
+</body>
+</html>

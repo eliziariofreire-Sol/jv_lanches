@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Pedido Confirmado</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center">
+
+    <div class="bg-zinc-900 p-10 rounded-3xl shadow-2xl max-w-xl w-full text-center border border-zinc-800">
+
+        <div class="text-7xl mb-6">
+            🍔
+        </div>
+
+        <h1 class="text-4xl font-bold text-emerald-400 mb-4">
+            Pedido Confirmado!
+        </h1>
+
+        <p class="text-zinc-300 text-lg mb-8">
+            Obrigado, {{ nome }}.
+            Seu pedido foi recebido com sucesso.
+        </p>
+
+        <div class="bg-zinc-800 rounded-2xl p-6 mb-8">
+
+            <p class="text-zinc-400 mb-2">
+                Número do pedido
+            </p>
+
+            <p class="text-3xl font-bold text-white">
+                #{{ pedido_id }}
+            </p>
+
+            <div class="mt-6">
+
+                <p class="text-zinc-400">
+                    Total do pedido
+                </p>
+
+                <p class="text-2xl font-bold text-emerald-400">
+                    R$ {{ total }}
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="text-zinc-400 mb-8">
+            ⏱ Tempo estimado:
+            <span class="text-white font-bold">
+                25-35 minutos
+            </span>
+        </div>
+
+        <a href="/cardapio"
+           class="inline-block bg-emerald-500 hover:bg-emerald-600
+                  text-black font-bold px-8 py-4 rounded-2xl transition">
+
+            Fazer Novo Pedido
+
+        </a>
+
+    </div>
+
+</body>
+</html>

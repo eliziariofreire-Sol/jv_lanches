@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - SOL LANCHES</title>
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+</head>
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center">
+    <div class="bg-zinc-900 p-10 rounded-3xl w-full max-w-md">
+        <div class="text-center mb-10">
+            <div class="text-6xl mb-4">🍔</div>
+            <h1 class="text-3xl font-bold">SOL Lanches Admin</h1>
+        </div>
+        
+        {% if erro %}
+        <div class="bg-red-900 text-red-200 p-4 rounded-2xl mb-6">{{ erro }}</div>
+        {% endif %}
+
+        <form method="POST" action="/admin/login">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Usuário</label>
+                    <input type="text" name="usuario" value="admin" 
+                           class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Senha</label>
+                    <input type="password" name="senha" value="sol123" 
+                           class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4">
+                </div>
+                <button type="submit" 
+                        class="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-5 rounded-3xl text-lg">
+                    Entrar no Dashboard
+                </button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

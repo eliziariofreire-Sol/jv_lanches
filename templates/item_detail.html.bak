@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ item.nome }} - SOL Lanches</title>
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+
+    <div class="max-w-2xl mx-auto px-6 py-12">
+        <a href="/cardapio" class="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-500 mb-8">
+            <i class="fas fa-arrow-left"></i> Voltar ao Cardápio
+        </a>
+
+        <img loading="lazy" src="{{ item.imagem }}" class="w-full h-80 object-cover rounded-3xl mb-8">
+
+        <h1 class="text-4xl font-bold">{{ item.nome }}</h1>
+        <p class="text-zinc-400 mt-4 text-lg">{{ item.descricao }}</p>
+        <p class="text-5xl font-bold text-emerald-400 mt-6">R$ {{ "%.2f"|format(item.preco) }}</p>
+
+        <div class="mt-12 bg-zinc-900 rounded-3xl p-8">
+            <h2 class="text-2xl font-semibold mb-6">Personalize seu pedido</h2>
+            <div id="custom-options" class="space-y-4"></div>
+        </div>
+
+        <button onclick="adicionarAoCarrinho()" 
+                class="w-full mt-12 bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-6 rounded-3xl text-xl">
+            Adicionar ao Carrinho
+        </button>
+    </div>
+
+    <script>
+        const customizacoes = [
+            { nome: "Sem cebola", preco: 0.0 },
+            { nome: "Extra queijo", preco: 3.50 },
+            { nome: "Bacon extra", preco: 5.90 },
+            { nome: "Molho especial", preco: 2.00 }
+        ];
+
+        let selecionadas = [];
+
+        function renderCustomizacoes() {
+            const container = document.getElementById('custom-options');
+            container.innerHTML = '';
+            customizacoes.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `flex justify-between items-center p-5 rounded-2xl cursor-pointer transition ${selecionadas.includes(c.nome) ? 'bg-emerald-900' : 'bg-zinc-800'}`;
+                div.innerHTML = `<span>${c.nome}</span><span class="text-emerald-400">${c.preco > 0 ? '+ R$ ' + c.preco.toFixed(2) : 'Grátis'}</span>`;
+                div.onclick = () => {
+                    if (selecionadas.includes(c.nome)) {
+                        selecionadas = selecionadas.filter(n => n !== c.nome);
+                    } else {
+                        selecionadas.push(c.nome);
+                    }
+                    renderCustomizacoes();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function adicionarAoCarrinho() {
+            fetch('/api/adicionar_com_customizacao', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ item_id: {{ item.id }}, customizacoes: selecionadas })
+            }).then(() => {
+                alert("Item adicionado ao carrinho!");
+                window.location.href = '/cardapio';
+            });
+        }
+
+        window.onload = renderCustomizacoes;
+    </script>
+</body>
+</html>
