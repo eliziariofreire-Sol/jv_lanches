@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 
+# ====================== CONFIGURAÇÃO ======================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(
@@ -14,7 +15,8 @@ app = Flask(
 
 app.secret_key = "sollanches-2026-super-secret-key"
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/sollanches.db'
+# ✅ Caminho corrigido para funcionar no Render
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(BASE_DIR, "instance", "sollanches.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -105,34 +107,7 @@ def adicionar():
     session.modified = True
     total_itens = sum(item["quantidade"] for item in carrinho)
 
-    return jsonify({
-        "sucesso": True,
-        "total_itens": total_itens
-    })
-
-@app.route("/api/remover", methods=["POST"])
-def remover_do_carrinho():
-    data = request.get_json()
-    item_id = data.get("item_id")
-    
-    carrinho = session.get("carrinho", [])
-    session["carrinho"] = [item for item in carrinho if item["id"] != item_id]
-    session.modified = True
-    return jsonify({"sucesso": True})
-
-@app.route("/api/atualizar", methods=["POST"])
-def atualizar_quantidade():
-    data = request.get_json()
-    item_id = data.get("item_id")
-    quantidade = int(data.get("quantidade", 1))
-    
-    carrinho = session.get("carrinho", [])
-    for item in carrinho:
-        if item["id"] == item_id:
-            item["quantidade"] = quantidade if quantidade > 0 else 1
-            break
-    session.modified = True
-    return jsonify({"sucesso": True})
+    return jsonify({"sucesso": True, "total_itens": total_itens})
 
 # ====================== FINALIZAR PEDIDO ======================
 @app.route("/finalizar", methods=["POST"])
@@ -154,15 +129,9 @@ def finalizar_pedido():
 
     db.session.add(pedido)
     db.session.commit()
-
     session.pop("carrinho", None)
 
-    return render_template(
-        "sucesso.html",
-        pedido_id=pedido.id,
-        total=total,
-        nome=request.form.get("nome")
-    )
+    return render_template("sucesso.html", pedido_id=pedido.id, total=total, nome=request.form.get("nome"))
 
 # ====================== ADMIN ======================
 @app.route("/admin")
@@ -171,10 +140,7 @@ def admin_login():
 
 @app.route("/admin/login", methods=["POST"])
 def admin_login_post():
-    usuario = request.form.get("usuario")
-    senha = request.form.get("senha")
-
-    if usuario == "admin" and senha == "sol123":
+    if request.form.get("usuario") == "admin" and request.form.get("senha") == "sol123":
         session["admin"] = True
         return redirect("/admin/dashboard")
     return render_template("admin_login.html", erro="Credenciais inválidas")
@@ -183,18 +149,10 @@ def admin_login_post():
 def admin_dashboard():
     if not session.get("admin"):
         return redirect("/admin")
-
     pedidos = Pedido.query.order_by(Pedido.data.desc()).all()
-
-    total_vendas = sum(pedido.total for pedido in pedidos)
-    total_pedidos = len(pedidos)
-
-    return render_template(
-        "admin_dashboard.html",
-        pedidos=pedidos,
-        total_vendas=round(total_vendas, 2),
-        total_pedidos=total_pedidos
-    )
+    total_vendas = sum(p.total for p in pedidos)
+    return render_template("admin_dashboard.html", pedidos=pedidos, 
+                         total_vendas=round(total_vendas, 2), total_pedidos=len(pedidos))
 
 # ====================== COZINHA ======================
 @app.route("/cozinha")
@@ -203,10 +161,7 @@ def cozinha_login():
 
 @app.route("/cozinha/login", methods=["POST"])
 def cozinha_login_post():
-    usuario = request.form.get("usuario")
-    senha = request.form.get("senha")
-
-    if usuario == "cozinha" and senha == "cozinha123":
+    if request.form.get("usuario") == "cozinha" and request.form.get("senha") == "cozinha123":
         session["cozinha"] = True
         return redirect("/cozinha/dashboard")
     return render_template("cozinha_login.html", erro="Credenciais inválidas")
@@ -229,13 +184,10 @@ def atualizar_status():
         return jsonify({"erro": "Sem permissão"}), 403
 
     data = request.get_json()
-    pedido_id = data.get("pedido_id")
-    novo_status = data.get("status")
-
-    pedido = Pedido.query.get_or_404(pedido_id)
-    pedido.status = novo_status
+    pedido = Pedido.query.get_or_404(data.get("pedido_id"))
+    pedido.status = data.get("status")
     db.session.commit()
-    return jsonify({"sucesso": True, "status": novo_status})
+    return jsonify({"sucesso": True})
 
 # ====================== LOGOUT ======================
 @app.route("/admin/logout")
@@ -247,9 +199,11 @@ def logout():
 
 # ====================== INICIALIZAR BANCO ======================
 def iniciar_banco():
+    os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
     db.create_all()
 
     if Item.query.count() == 0:
+        print("📋 Criando cardápio inicial...")
         cardapio = [
             ("Bauru", "Lanches", 9.00, "Pão, bife, ovo, frango", "/static/images/hamburgers/bauru_old.webp"),
             ("X-Bacon", "Lanches", 13.00, "Pão, bife, bacon, queijo", "/static/images/hamburgers/x-bacon.webp"),
@@ -257,10 +211,10 @@ def iniciar_banco():
             ("X-Tudo", "Lanches", 20.00, "Completo da casa", "/static/images/hamburgers/x-tudo.webp"),
             ("X-Sol", "Lanches", 25.00, "Especial da casa", "/static/images/hamburgers/xsol.webp"),
         ]
-
         for nome, cat, preco, desc, img in cardapio:
             db.session.add(Item(nome=nome, categoria=cat, preco=preco, descricao=desc, imagem=img))
         db.session.commit()
+        print("✅ Cardápio criado com sucesso!")
 
 # ====================== START ======================
 with app.app_context():
